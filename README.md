@@ -5,6 +5,12 @@
 This is a beautiful, scrollytelling fan-made website for Monster Energy!  
 **⚡ My first animated website built using Antigravity!**
 
+## 🚀 Live Demo
+Check out the deployed project here:
+
+👉 **https://monster-animated-website-by-pranav.netlify.app/**
+
+
 ## Features
 - **Scrollytelling Animations:** Frame-by-frame HTML5 Canvas sequence locked to scroll.
 - **Cinematic GSAP Transitions:** Smooth crossfades, content reveals, and bar chart animations.
