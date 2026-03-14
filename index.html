@@ -122,8 +122,13 @@
             height: 100vh; width: 100%;
             background: #000;
             overflow: hidden;
+            will-change: transform;
         }
-        #hero-canvas { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
+        #hero-canvas { 
+            width: 100%; height: 100%; 
+            object-fit: cover; opacity: 0.7; 
+            will-change: transform, opacity;
+        }
         
         .hero-overlay {
             position: absolute; inset: 0;
@@ -314,9 +319,68 @@
         .reveal.active { opacity: 1; transform: translateY(0); }
 
         @media (max-width: 1024px) {
-            .command-layout { grid-template-columns: 1fr; }
+            :root { --nav-height: 70px; --container-padding: 5%; }
+            
+            nav { 
+                grid-template-columns: auto 1fr; 
+                gap: 20px;
+                background: rgba(0,0,0,0.8);
+                backdrop-filter: blur(20px);
+            }
+            .nav-tabs { 
+                overflow-x: auto; 
+                padding: 10px 0;
+                gap: 24px;
+                scrollbar-width: none; 
+                -ms-overflow-style: none;
+            }
+            .nav-tabs::-webkit-scrollbar { display: none; }
+            .nav-logo { font-size: 20px; letter-spacing: 2px; }
+            .tab { font-size: 10px; white-space: nowrap; }
+            .buy-btn { display: none; } /* Hide buy btn in nav on mobile to save space, it's in the hero anyway */
+            
+            .hero-content { padding-top: 20px; text-align: center; width: 100%; transform: none; }
+            .hero-overlay { 
+                background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.8) 100%);
+                justify-content: center;
+                align-items: center;
+            }
+            .flavor-title { font-size: 56px; margin-bottom: 20px; line-height: 1; }
+            .meta-strip { justify-content: center; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+            .meta-badge { padding: 6px 14px; font-size: 9px; }
+            
+            .flavor-story { grid-template-columns: 1fr; gap: 24px; text-align: left; }
+            .story-main p { font-size: 16px; text-align: center; }
+            .story-side { border-left: none; border-top: 1px solid var(--accent-color); padding: 16px 0 0; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 32px; }
+            
+            section { padding: 100px var(--container-padding); }
+            h2 { font-size: 40px; margin-bottom: 40px; }
+            
+            #about { grid-template-columns: 1fr; gap: 60px; text-align: center; }
+            #can-visual { margin: 0 auto; max-width: 280px; }
+            
+            .command-layout { grid-template-columns: 1fr; gap: 40px; }
+            .cmd-header { flex-direction: column; gap: 12px; border-bottom: none; }
+            .cmd-title { font-size: 44px; }
             .influence-grid { grid-template-columns: 1fr; }
+            .inf-box { padding: 24px; }
+            .inf-val { font-size: 28px; }
+            
+            .beast-profile { padding: 32px; }
+            .arch-name { font-size: 32px; }
+            
             .cmd-bg-dna { display: none; }
+            
+            #audio-player { height: 70px; padding: 0 15px; gap: 12px; }
+            .player-track { font-size: 14px; letter-spacing: 1px; }
+            .disk-widget { width: 36px; height: 36px; }
+            .player-controls { gap: 12px; }
+            .p-btn { font-size: 16px; }
+            .player-vol { display: none; }
+
+            /* Hide custom cursor on mobile */
+            #cursor, #cursor-follower { display: none !important; }
+            body { cursor: auto !important; }
         }
 
         /* --- Audio Player Bar --- */
@@ -522,14 +586,16 @@
 
     <nav id="main-nav">
         <div class="nav-logo">MONSTER</div>
-        <div class="nav-tabs">
-            <div class="tab" data-flavor="pipeline" onclick="switchFlavor('pipeline')">Pipeline</div>
-            <div class="tab" data-flavor="ultra" onclick="switchFlavor('ultra')">Ultra</div>
-            <div class="tab" data-flavor="pacific" onclick="switchFlavor('pacific')">Pacific</div>
-            <div class="tab" data-flavor="mango" onclick="switchFlavor('mango')">Mango Loco</div>
+        <div class="nav-tabs-container" style="display:contents;">
+            <div class="nav-tabs">
+                <div class="tab" data-flavor="pipeline" onclick="switchFlavor('pipeline')">Pipeline</div>
+                <div class="tab" data-flavor="ultra" onclick="switchFlavor('ultra')">Ultra</div>
+                <div class="tab" data-flavor="pacific" onclick="switchFlavor('pacific')">Pacific</div>
+                <div class="tab" data-flavor="mango" onclick="switchFlavor('mango')">Mango Loco</div>
+            </div>
         </div>
-        <div style="display:flex; justify-content:flex-end;">
-            <div class="tab" style="color:#fff; border:1px solid rgba(255,255,255,0.2); padding:8px 20px;">BUY NOW</div>
+        <div class="nav-buy-container" style="display:flex; justify-content:flex-end;">
+            <div class="tab buy-btn" style="color:#fff; border:1px solid rgba(255,255,255,0.2); padding:8px 20px;">BUY NOW</div>
         </div>
     </nav>
 
@@ -742,10 +808,10 @@
             }
         };
 
-        const totalFrames = 210;
+        const totalFrames = 105; // Reduced from 210 for performance
         const images = [];
         const canvas = document.getElementById('hero-canvas');
-        const context = canvas.getContext('2d');
+        const context = canvas.getContext('2d', { alpha: false }); // Optimization
         const seq = { frame: 0 };
         let currentFlavor = 'pipeline';
 
@@ -779,18 +845,35 @@
 
         function initWebAudio() {
             if (audioCtx) return;
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioCtx.createAnalyser();
-            analyser.fftSize = 128;
-            analyser.smoothingTimeConstant = 0.8;
-            bufferLength = analyser.frequencyBinCount;
-            dataArray = new Uint8Array(bufferLength);
             
-            Object.values(audioTracks).forEach(a => {
-                const source = audioCtx.createMediaElementSource(a);
-                source.connect(analyser);
-            });
-            analyser.connect(audioCtx.destination);
+            // Critical Fix: Browsers block Web Audio API from capturing via file:// due to CORS.
+            // If we are on file://, we skip the visualizer but let the audio play normally.
+            if (window.location.protocol === 'file:') {
+                console.warn("Running via file:// protocol. Web Audio Visualizer disabled to prevent CORS-induced silence. Audio will play directly.");
+                return;
+            }
+
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 128;
+                analyser.smoothingTimeConstant = 0.8;
+                bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+                
+                Object.values(audioTracks).forEach(a => {
+                    try {
+                        // This might fail locally due to CORS if via file://
+                        const source = audioCtx.createMediaElementSource(a);
+                        source.connect(analyser);
+                    } catch (e) {
+                        console.warn("MediaElementAudioSource blocked (CORS?) - Visualizer disabled for this track.", e);
+                    }
+                });
+                analyser.connect(audioCtx.destination);
+            } catch (e) {
+                console.error("Web Audio API failed to initialize:", e);
+            }
         }
 
         function interpolateColor(color1, color2, factor) {
@@ -821,22 +904,27 @@
             requestAnimationFrame(drawBars);
             ctxViz.clearRect(0, 0, 100, 100);
             
-            if (audioCtx && analyser && isPlaying) {
-                analyser.getByteFrequencyData(dataArray);
-                // Mirror effect
-                for (let i = 0; i < NUM_BARS / 2; i++) {
-                    const mirrorIndex = NUM_BARS - 1 - i;
-                    dataArray[mirrorIndex] = dataArray[i];
+            if (audioCtx && analyser && isPlaying && dataArray) {
+                try {
+                    analyser.getByteFrequencyData(dataArray);
+                    // Mirror effect
+                    for (let i = 0; i < NUM_BARS / 2; i++) {
+                        const mirrorIndex = NUM_BARS - 1 - i;
+                        dataArray[mirrorIndex] = dataArray[i];
+                    }
+                } catch (e) {
+                    console.error("Visualizer data sampling failed:", e);
                 }
             }
             
             const centerX = 50;
             const centerY = 50;
-            const radius = 26; // Adjusted to match 48px disk and leave 2px gap (24+2)
-            const maxBarHeight = 14; // Dramatically reduced so max radius is 26+14 = 40px (fits in 80px bar)
+            const radius = 26; 
+            const maxBarHeight = 14; 
             const minBarHeight = 2;
             
-            const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim(); 
+            // Cached accent color
+            const accentColor = document.documentElement.style.getPropertyValue('--accent-color') || '#FF1493';
 
             for (let i = 0; i < NUM_BARS; i++) {
                 let raw = 0;
@@ -887,12 +975,17 @@
         requestAnimationFrame(drawBars);
         // -------------------------
 
-        function playCurrent() {
-            activeAudio.play();
-            isPlaying = true;
-            const disk = document.getElementById('vinyl-disk');
-            disk.classList.add('disk-playing');
-            disk.classList.remove('disk-paused');
+        async function playCurrent() {
+            try {
+                if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
+                await activeAudio.play();
+                isPlaying = true;
+                const disk = document.getElementById('vinyl-disk');
+                disk.classList.add('disk-playing');
+                disk.classList.remove('disk-paused');
+            } catch (e) {
+                console.error("Playback failed:", e);
+            }
         }
         function pauseCurrent() {
             activeAudio.pause();
@@ -904,7 +997,9 @@
         // -------------------------
 
         function getPath(f, i) {
-            const n = String(i).padStart(3, '0');
+            // Frame mapping: Use every 2nd frame from the source folder (1, 3, 5...)
+            const frameIndex = (i * 2) - 1; 
+            const n = String(frameIndex).padStart(3, '0');
             return `${FLAVORS[f].dir}/${FLAVORS[f].frames}${n}.png`;
         }
 
@@ -1042,7 +1137,7 @@
 
             gsap.to(seq, {
                 frame: totalFrames - 1, snap: "frame", ease: "none",
-                scrollTrigger: { trigger: "#hero", start: "top top", end: "bottom bottom", scrub: 0.5 },
+                scrollTrigger: { trigger: "#hero", start: "top top", end: "bottom bottom", scrub: 1 },
                 onUpdate: render
             });
 
@@ -1063,7 +1158,16 @@
                     audioCtx.resume();
                 }
                 audioUnlocked = true;
-                document.getElementById('vinyl-disk').classList.remove('disk-locked');
+                const disk = document.getElementById('vinyl-disk');
+                disk.classList.remove('disk-locked');
+                
+                // Show a small "SOUND UNLOCKED" toast for better UX
+                const toast = document.createElement('div');
+                toast.innerText = "BEAST UNLEASHED // SOUND ACTIVE";
+                toast.style.cssText = "position:fixed; bottom:100px; left:50%; transform:translateX(-50%); background:var(--accent-color); color:#000; padding:10px 20px; font-weight:900; font-size:10px; letter-spacing:2px; z-index:5000; pointer-events:none;";
+                document.body.appendChild(toast);
+                gsap.to(toast, { opacity:0, y:-20, delay:2, duration:1, onComplete:()=>toast.remove() });
+
                 playCurrent();
             }, { once: true });
 
